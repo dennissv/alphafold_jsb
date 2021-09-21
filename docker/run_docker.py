@@ -167,7 +167,7 @@ def main(argv):
       f'--max_template_date={FLAGS.max_template_date}',
       f'--preset={FLAGS.preset}',
       f'--benchmark={FLAGS.benchmark}',
-      f'--amber={FLAGS.amber},
+      f'--amber={FLAGS.amber}',
       '--logtostderr',
   ])
 
