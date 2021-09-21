@@ -85,6 +85,7 @@ obsolete_pdbs_path = os.path.join(DOWNLOAD_DIR, 'pdb_mmcif', 'obsolete.dat')
 
 
 flags.DEFINE_bool('use_gpu', True, 'Enable NVIDIA runtime to run with GPUs.')
+flags.DEFINE_bool('amber', False, 'Enable amber relaxation.')
 flags.DEFINE_string('gpu_devices', 'all', 'Comma separated list of devices to '
                     'pass to NVIDIA_VISIBLE_DEVICES.')
 flags.DEFINE_list('fasta_paths', None, 'Paths to FASTA files, each containing '
@@ -166,6 +167,7 @@ def main(argv):
       f'--max_template_date={FLAGS.max_template_date}',
       f'--preset={FLAGS.preset}',
       f'--benchmark={FLAGS.benchmark}',
+      f'--amber={FLAGS.amber},
       '--logtostderr',
   ])
 
