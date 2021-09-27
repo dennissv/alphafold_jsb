@@ -25,7 +25,9 @@ os.makedirs(result_dir, exist_ok=True)
 os.makedirs('msas', exist_ok=True)
 ready = set([f for f in os.listdir(result_dir) if isfile(join(result_dir, f))])
 
-for name, seq in proteins[:5]:
+for name, seq in proteins:
+    if name in ready:
+        continue
     start = time.time()
     print("Running: " + name)
     try:
@@ -37,6 +39,8 @@ for name, seq in proteins[:5]:
         os.mknod(join(result_dir, name))
     except:
         pass
+    with open(f'{join(result_dir, name)}.a3m', "w") as text_file:
+        text_file.write(a3m_lines)
     end = time.time()
     if end - start < 10:
         continue
