@@ -35,13 +35,9 @@ for name, seq in proteins:
     except:
         print(name + " could not be processed")
         continue
-    try:
-        os.mknod(join(result_dir, name))
-    except:
-        pass
     with open(f'{join(result_dir, name)}.a3m', "w") as text_file:
         text_file.write(a3m_lines)
     end = time.time()
     if end - start < 10:
-        continue
+        time.sleep(30)
     time.sleep(max(0, 300 - (end-start)))
