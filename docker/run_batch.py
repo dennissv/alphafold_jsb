@@ -15,11 +15,9 @@ import time
 def add_hash(x,y):
   return x
 
-input_dir = '../input/450470/' #@param {type:"string"}
+input_dir = 'ready' #@param {type:"string"}
 
 result_dir = 'results' #@param {type:"string"}
-
-is_done = []
 
 # create directory
 os.makedirs(result_dir, exist_ok=True) 
@@ -242,152 +240,174 @@ def predict_structure(prefix, feature_dict, Ls, crop_len, model_params, use_mode
     out[f"model_{n+1}"] = {"plddt":plddts[r], "pae":paes[r]}
   return out
 
-from os import listdir
-from os.path import isfile, join
-onlyfiles = [f for f in listdir(input_dir) if isfile(join(input_dir, f))]
-queries = []
-for filename in onlyfiles:
-    extension = os.path.splitext(filename)[1]
-    jobname=os.path.splitext(filename)[0]
-    filepath = input_dir+"/"+filename
-    with open(filepath) as f:
-      input_fasta_str = f.read()
-    (seqs, header) = pipeline.parsers.parse_fasta(input_fasta_str)
-    query_sequence = seqs[0]
-    queries.append((jobname, query_sequence, extension))
-# sort by seq. len    
-queries.sort(key=lambda t: len(t[1]))
-import math
-crop_len = math.ceil(len(queries[0][1]) * 1.1)
+# from os import listdir
+# from os.path import isfile, join
+# onlyfiles = [f for f in listdir(input_dir) if isfile(join(input_dir, f))]
+# queries = []
+# for filename in onlyfiles:
+#     extension = os.path.splitext(filename)[1]
+#     jobname=os.path.splitext(filename)[0]
+#     filepath = input_dir+"/"+filename
+#     with open(filepath) as f:
+#         input_fasta_str = f.read()
+#     (seqs, header) = pipeline.parsers.parse_fasta(input_fasta_str)
+#     query_sequence = seqs[0]
+#     queries.append((jobname, query_sequence, extension))
+# # sort by seq. len    
+# queries.sort(key=lambda t: len(t[1]))
+# import math
+# crop_len = math.ceil(len(queries[0][1]) * 1.1)
 
-# while 1:
-#     if 
-for (jobname, query_sequence, extension) in queries:
-  if jobname in is_done:
-    continue
-  start = time.time()
-  a3m_file = f"{jobname}.a3m"
-  if len(query_sequence) > crop_len:
-    crop_len = math.ceil(len(query_sequence) * 1.1)
-  print("Running: "+jobname)
-  if do_not_overwite_results == True and os.path.isfile(result_dir+"/"+jobname+".result.zip"):
-    continue
-  if use_templates:
-    try:  
-      a3m_lines, template_paths = cf.run_mmseqs2(query_sequence, jobname, use_env, use_templates=True)
-    except:
-      print(jobname+" cound not be processed")
-      continue  
-    if template_paths is None:
-      template_features = mk_mock_template(query_sequence, 100)
-    else:
-      template_features = mk_template(a3m_lines, template_paths)
-    if extension.lower() == ".a3m":
-      a3m_lines = "".join(open(input_dir+"/"+a3m_file,"r").read())
-  else:
-    if extension.lower() == ".a3m":
-      a3m_lines = "".join(open(input_dir+"/"+a3m_file,"r").read())
-    else:
-      try:  
-        a3m_lines = cf.run_mmseqs2(query_sequence, jobname, use_env)
+def load_obj(name):
+    with open(name, 'rb') as f:
+        return pickle.load(f)
+
+proteins = load_obj('enccn_proteins.pkl')
+
+from glob import glob
+import math
+
+while 1:
+    ready = glob(f'{input_dir}/*.a3m')
+    if len(ready) < 10:
+        time.sleep(300)
+        continue
+    queries = []
+    for filepath in ready:
+        extension = '.a3m'
+        jobname = filepath[len(input_dir)+1:-4]
+        with open(filepath) as f:
+            input_fasta_str = f.read()
+        query_sequence = proteins[jobname]
+        queries.append((jobname, query_sequence, extension))
+    queries.sort(key=lambda t: len(t[1]))
+    queries = queries[:10]
+    crop_len = len(queries[-1]) + 1
+    
+    for (jobname, query_sequence, extension) in queries:
+      start = time.time()
+      a3m_file = f"{jobname}.a3m"
+      if len(query_sequence) > crop_len:
+        crop_len = math.ceil(len(query_sequence) * 1.1)
+      print("Running: "+jobname)
+      if do_not_overwite_results == True and os.path.isfile(result_dir+"/"+jobname+".result.zip"):
+        continue
+      if use_templates:
+        try:  
+          a3m_lines, template_paths = cf.run_mmseqs2(query_sequence, jobname, use_env, use_templates=True)
+        except:
+          print(jobname+" cound not be processed")
+          continue  
+        if template_paths is None:
+          template_features = mk_mock_template(query_sequence, 100)
+        else:
+          template_features = mk_template(a3m_lines, template_paths)
+        if extension.lower() == ".a3m":
+          a3m_lines = "".join(open(input_dir+"/"+a3m_file,"r").read())
+      else:
+        if extension.lower() == ".a3m":
+          a3m_lines = "".join(open(input_dir+"/"+a3m_file,"r").read())
+        else:
+          try:
+            a3m_lines = cf.run_mmseqs2(query_sequence, jobname, use_env)
+          except:
+            print(jobname+" cound not be processed")
+            continue
+        template_features = mk_mock_template(query_sequence, 100)
+    
+      # with open(a3m_file, "w") as text_file:
+      #   text_file.write(a3m_lines)
+      # parse MSA
+      msa, deletion_matrix = pipeline.parsers.parse_a3m(a3m_lines)
+    
+      #@title Gather input features, predict structure
+      from string import ascii_uppercase
+    
+      # collect model weights
+      use_model = {}
+      if "model_params" not in dir(): model_params = {}
+      for model_name in ["model_1","model_2","model_3","model_4","model_5"][:num_models]:
+        use_model[model_name] = True
+        if model_name not in model_params:
+          model_params[model_name] = data.get_model_haiku_params(model_name=model_name+"_ptm", data_dir=".")
+          if model_name == "model_1":
+            model_config = config.model_config(model_name+"_ptm")
+            model_config.data.eval.num_ensemble = 1
+            model_runner_1 = model.RunModel(model_config, model_params[model_name])
+          if model_name == "model_3":
+            model_config = config.model_config(model_name+"_ptm")
+            model_config.data.eval.num_ensemble = 1
+            model_runner_3 = model.RunModel(model_config, model_params[model_name])
+    
+    
+      msas = [msa]
+      deletion_matrices = [deletion_matrix]
+      try:
+      # gather features
+        feature_dict = {
+            **pipeline.make_sequence_features(sequence=query_sequence,
+                                              description="none",
+                                              num_res=len(query_sequence)),
+            **pipeline.make_msa_features(msas=msas,deletion_matrices=deletion_matrices),
+            **template_features
+        }
       except:
         print(jobname+" cound not be processed")
         continue
-    template_features = mk_mock_template(query_sequence, 100)
-
-  with open(a3m_file, "w") as text_file:
-    text_file.write(a3m_lines)
-  # parse MSA
-  msa, deletion_matrix = pipeline.parsers.parse_a3m(a3m_lines)
-
-  #@title Gather input features, predict structure
-  from string import ascii_uppercase
-
-  # collect model weights
-  use_model = {}
-  if "model_params" not in dir(): model_params = {}
-  for model_name in ["model_1","model_2","model_3","model_4","model_5"][:num_models]:
-    use_model[model_name] = True
-    if model_name not in model_params:
-      model_params[model_name] = data.get_model_haiku_params(model_name=model_name+"_ptm", data_dir=".")
-      if model_name == "model_1":
-        model_config = config.model_config(model_name+"_ptm")
-        model_config.data.eval.num_ensemble = 1
-        model_runner_1 = model.RunModel(model_config, model_params[model_name])
-      if model_name == "model_3":
-        model_config = config.model_config(model_name+"_ptm")
-        model_config.data.eval.num_ensemble = 1
-        model_runner_3 = model.RunModel(model_config, model_params[model_name])
-
-
-  msas = [msa]
-  deletion_matrices = [deletion_matrix]
-  try:
-  # gather features
-    feature_dict = {
-        **pipeline.make_sequence_features(sequence=query_sequence,
-                                          description="none",
-                                          num_res=len(query_sequence)),
-        **pipeline.make_msa_features(msas=msas,deletion_matrices=deletion_matrices),
-        **template_features
-    }
-  except:
-    print(jobname+" cound not be processed")
-    continue
-
-  
-  outs = predict_structure(jobname, feature_dict,
-                           Ls=[len(query_sequence)], crop_len=crop_len,
-                           model_params=model_params, use_model=use_model,
-                           do_relax=use_amber)
-
-  # gather MSA info
-  deduped_full_msa = list(dict.fromkeys(msa))
-  msa_arr = np.array([list(seq) for seq in deduped_full_msa])
-  seqid = (np.array(list(query_sequence)) == msa_arr).mean(-1)
-  seqid_sort = seqid.argsort() #[::-1]
-  non_gaps = (msa_arr != "-").astype(float)
-  non_gaps[non_gaps == 0] = np.nan
-
-  ##################################################################
-  plt.figure(figsize=(14,4),dpi=100)
-  ##################################################################
-  plt.subplot(1,2,1); plt.title("Sequence coverage")
-  plt.imshow(non_gaps[seqid_sort]*seqid[seqid_sort,None],
-             interpolation='nearest', aspect='auto',
-             cmap="rainbow_r", vmin=0, vmax=1, origin='lower')
-  plt.plot((msa_arr != "-").sum(0), color='black')
-  plt.xlim(-0.5,msa_arr.shape[1]-0.5)
-  plt.ylim(-0.5,msa_arr.shape[0]-0.5)
-  plt.colorbar(label="Sequence identity to query",)
-  plt.xlabel("Positions")
-  plt.ylabel("Sequences")
-
-  ##################################################################
-  plt.subplot(1,2,2); plt.title("Predicted lDDT per position")
-  for model_name,value in outs.items():
-    plt.plot(value["plddt"],label=model_name)
-  if homooligomer > 0:
-    for n in range(homooligomer+1):
-      x = n*(len(query_sequence)-1)
-      plt.plot([x,x],[0,100],color="black")
-  plt.legend()
-  plt.ylim(0,100)
-  plt.ylabel("Predicted lDDT")
-  plt.xlabel("Positions")
-  plt.savefig(jobname+"_coverage_lDDT.png")
-  ##################################################################
-
-  print("Predicted Alignment Error")
-  ##################################################################
-  plt.figure(figsize=(3*num_models,2), dpi=100)
-  for n,(model_name,value) in enumerate(outs.items()):
-    plt.subplot(1,num_models,n+1)
-    plt.title(model_name)
-    plt.imshow(value["pae"],label=model_name,cmap="bwr",vmin=0,vmax=30)
-    plt.colorbar()
-  plt.savefig(jobname+"_PAE.png")
-  ##################################################################
-  # !zip -FSr $result_dir"/"$jobname".result.zip" "run.log" "cite.bibtex" $a3m_file $jobname"_"*"relaxed_model_"*".pdb" $jobname"_coverage_lDDT.png" $jobname"_PAE.png"
-  end = time.time()
-  time.sleep(max(0, 300 - (end-start)))
+    
+      
+      outs = predict_structure(jobname, feature_dict,
+                               Ls=[len(query_sequence)], crop_len=crop_len,
+                               model_params=model_params, use_model=use_model,
+                               do_relax=use_amber)
+    
+      # gather MSA info
+      deduped_full_msa = list(dict.fromkeys(msa))
+      msa_arr = np.array([list(seq) for seq in deduped_full_msa])
+      seqid = (np.array(list(query_sequence)) == msa_arr).mean(-1)
+      seqid_sort = seqid.argsort() #[::-1]
+      non_gaps = (msa_arr != "-").astype(float)
+      non_gaps[non_gaps == 0] = np.nan
+    
+      ##################################################################
+      plt.figure(figsize=(14,4),dpi=100)
+      ##################################################################
+      plt.subplot(1,2,1); plt.title("Sequence coverage")
+      plt.imshow(non_gaps[seqid_sort]*seqid[seqid_sort,None],
+                 interpolation='nearest', aspect='auto',
+                 cmap="rainbow_r", vmin=0, vmax=1, origin='lower')
+      plt.plot((msa_arr != "-").sum(0), color='black')
+      plt.xlim(-0.5,msa_arr.shape[1]-0.5)
+      plt.ylim(-0.5,msa_arr.shape[0]-0.5)
+      plt.colorbar(label="Sequence identity to query",)
+      plt.xlabel("Positions")
+      plt.ylabel("Sequences")
+    
+      ##################################################################
+      plt.subplot(1,2,2); plt.title("Predicted lDDT per position")
+      for model_name,value in outs.items():
+        plt.plot(value["plddt"],label=model_name)
+      if homooligomer > 0:
+        for n in range(homooligomer+1):
+          x = n*(len(query_sequence)-1)
+          plt.plot([x,x],[0,100],color="black")
+      plt.legend()
+      plt.ylim(0,100)
+      plt.ylabel("Predicted lDDT")
+      plt.xlabel("Positions")
+      plt.savefig(jobname+"_coverage_lDDT.png")
+      ##################################################################
+    
+      print("Predicted Alignment Error")
+      ##################################################################
+      plt.figure(figsize=(3*num_models,2), dpi=100)
+      for n,(model_name,value) in enumerate(outs.items()):
+        plt.subplot(1,num_models,n+1)
+        plt.title(model_name)
+        plt.imshow(value["pae"],label=model_name,cmap="bwr",vmin=0,vmax=30)
+        plt.colorbar()
+      plt.savefig(jobname+"_PAE.png")
+      ##################################################################
+      # !zip -FSr $result_dir"/"$jobname".result.zip" "run.log" "cite.bibtex" $a3m_file $jobname"_"*"relaxed_model_"*".pdb" $jobname"_coverage_lDDT.png" $jobname"_PAE.png"
+      end = time.time()
+      print(f'Processed {jobname} in {int(end-start)} s')

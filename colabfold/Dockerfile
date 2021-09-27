@@ -30,7 +30,11 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
       kalign \
       tzdata \
       wget \
-    && rm -rf /var/lib/apt/lists/*
+      jq \
+      curl \
+      zlib1g \
+      gawk \
+      && rm -rf /var/lib/apt/lists/*
 
 # Compile HHsuite from source.
 RUN git clone --branch v3.3.0 https://github.com/soedinglab/hh-suite.git /tmp/hh-suite \
@@ -64,6 +68,7 @@ RUN wget -q -P /app/alphafold/alphafold/common/ \
 
 # Install pip packages.
 RUN pip3 install --upgrade pip \
+    && pip3 install biopython dm-haiku ml-collections py3Dmol \
     && pip3 install -r /app/alphafold/requirements.txt \
     && pip3 install --upgrade jax jaxlib==0.1.69+cuda${CUDA/./} -f \
       https://storage.googleapis.com/jax-releases/jax_releases.html
@@ -71,6 +76,9 @@ RUN pip3 install --upgrade pip \
 # Apply OpenMM patch.
 WORKDIR /opt/conda/lib/python3.7/site-packages
 RUN patch -p0 < /app/alphafold/docker/openmm.patch
+
+# Colabfold modifactions
+
 
 # We need to run `ldconfig` first to ensure GPUs are visible, due to some quirk
 # with Debian. See https://github.com/NVIDIA/nvidia-docker/issues/1399 for
