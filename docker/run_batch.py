@@ -260,8 +260,8 @@ queries.sort(key=lambda t: len(t[1]))
 import math
 crop_len = math.ceil(len(queries[0][1]) * 1.1)
 
-while 1:
-    if 
+# while 1:
+#     if 
 for (jobname, query_sequence, extension) in queries:
   if jobname in is_done:
     continue

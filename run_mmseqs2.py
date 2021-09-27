@@ -35,5 +35,3 @@ for name, seq in proteins[:5]:
     os.mknod(join(result_dir, name))
     end = time.time()
     time.sleep(max(0, 300 - (end-start)))
-
-# pip install "jax[cpu]"
