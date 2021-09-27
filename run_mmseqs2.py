@@ -23,10 +23,11 @@ proteins = proteins[1000:1800]
 result_dir = 'ready'
 os.makedirs(result_dir, exist_ok=True)
 os.makedirs('msas', exist_ok=True)
-ready = set([f for f in os.listdir(result_dir) if isfile(join(result_dir, f))])
+ready = set([f.strip('.a3m') for f in os.listdir(result_dir) if isfile(join(result_dir, f))])
 
 for name, seq in proteins:
     if name in ready:
+        print(f'Skipped {name}, already processed')
         continue
     start = time.time()
     print("Running: " + name)
@@ -40,4 +41,5 @@ for name, seq in proteins:
     end = time.time()
     if end - start < 10:
         time.sleep(30)
+        continue
     time.sleep(max(0, 300 - (end-start)))
