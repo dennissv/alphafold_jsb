@@ -21,10 +21,8 @@ done_dir = 'done'
 result_dir = 'results' #@param {type:"string"}
 
 # create directories
-os.makedirs(result_dir, exist_ok=True) 
-os.makedirs(done_dir, exist_ok=True) 
-
-
+os.makedirs(result_dir, exist_ok=True)
+os.makedirs(done_dir, exist_ok=True)
 
 # number of models to use
 #@markdown ---
@@ -230,7 +228,8 @@ def predict_structure(prefix, feature_dict, Ls, crop_len, model_params, use_mode
   print("reranking models based on avg. predicted lDDT")
   for n,r in enumerate(lddt_rank):
     print(f"model_{n+1} {np.mean(plddts[r])}")
-
+    
+    os.makedirs(f'results/{prefix}', exist_ok=True)
     unrelaxed_pdb_path = f'results/{prefix}/{prefix}_unrelaxed_model_{n+1}.pdb'    
     with open(unrelaxed_pdb_path, 'w') as f: f.write(unrelaxed_pdb_lines[r])
     set_bfactor(unrelaxed_pdb_path, plddts[r], idx_res, chains)
