@@ -51,6 +51,7 @@ import warnings
 from absl import logging
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
 warnings.filterwarnings('ignore')
 logging.set_verbosity("error")
@@ -75,10 +76,10 @@ NUM_TEMPLATES = shape_placeholders.NUM_TEMPLATES
 
 import colabfold as cf
 # plotting libraries
-import py3Dmol
+# import py3Dmol
 import matplotlib.pyplot as plt
-import ipywidgets
-from ipywidgets import interact, fixed, GridspecLayout, Output
+# import ipywidgets
+# from ipywidgets import interact, fixed, GridspecLayout, Output
 
 
 if use_amber and "relax" not in dir():
