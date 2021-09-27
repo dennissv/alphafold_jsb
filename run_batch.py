@@ -7,6 +7,7 @@ Created on Mon Sep 27 11:24:38 2021
 """
 #@title Input protein sequence, then hit `Runtime` -> `Run all`
 import os
+import shutil
 import os.path
 import re
 import hashlib
@@ -16,11 +17,12 @@ def add_hash(x,y):
   return x
 
 input_dir = 'ready' #@param {type:"string"}
-
+done_dir = 'done'
 result_dir = 'results' #@param {type:"string"}
 
-# create directory
+# create directories
 os.makedirs(result_dir, exist_ok=True) 
+os.makedirs(done_dir, exist_ok=True) 
 
 
 
@@ -229,12 +231,12 @@ def predict_structure(prefix, feature_dict, Ls, crop_len, model_params, use_mode
   for n,r in enumerate(lddt_rank):
     print(f"model_{n+1} {np.mean(plddts[r])}")
 
-    unrelaxed_pdb_path = f'{prefix}_unrelaxed_model_{n+1}.pdb'    
+    unrelaxed_pdb_path = f'results/{prefix}/{prefix}_unrelaxed_model_{n+1}.pdb'    
     with open(unrelaxed_pdb_path, 'w') as f: f.write(unrelaxed_pdb_lines[r])
     set_bfactor(unrelaxed_pdb_path, plddts[r], idx_res, chains)
 
     if do_relax:
-      relaxed_pdb_path = f'{prefix}_relaxed_model_{n+1}.pdb'
+      relaxed_pdb_path = f'results/{prefix}/{prefix}_relaxed_model_{n+1}.pdb'
       with open(relaxed_pdb_path, 'w') as f: f.write(relaxed_pdb_lines[r])
       set_bfactor(relaxed_pdb_path, plddts[r], idx_res, chains)
 
@@ -396,7 +398,7 @@ while 1:
       plt.ylim(0,100)
       plt.ylabel("Predicted lDDT")
       plt.xlabel("Positions")
-      plt.savefig(jobname+"_coverage_lDDT.png")
+      plt.savefig(f'results/{jobname}/{jobname}_coverage_lDDT.png')
       ##################################################################
     
       print("Predicted Alignment Error")
@@ -407,8 +409,11 @@ while 1:
         plt.title(model_name)
         plt.imshow(value["pae"],label=model_name,cmap="bwr",vmin=0,vmax=30)
         plt.colorbar()
-      plt.savefig(jobname+"_PAE.png")
+      plt.savefig(f'results/{jobname}/{jobname}_PAE.png')
       ##################################################################
-      # !zip -FSr $result_dir"/"$jobname".result.zip" "run.log" "cite.bibtex" $a3m_file $jobname"_"*"relaxed_model_"*".pdb" $jobname"_coverage_lDDT.png" $jobname"_PAE.png"
+      
+      # Move files when job is finished
+      shutil.move(f'{input_dir}/{jobname}.a3m', f'{done_dir}/{jobname}.a3m')
+      
       end = time.time()
       print(f'Processed {jobname} in {int(end-start)} s')
