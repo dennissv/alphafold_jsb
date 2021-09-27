@@ -226,10 +226,10 @@ def predict_structure(prefix, feature_dict, Ls, crop_len, model_params, use_mode
   lddt_rank = np.mean(plddts,-1).argsort()[::-1]
   out = {}
   print("reranking models based on avg. predicted lDDT")
+  os.makedirs(f'results/{prefix}', exist_ok=True)
   for n,r in enumerate(lddt_rank):
     print(f"model_{n+1} {np.mean(plddts[r])}")
     
-    os.makedirs(f'results/{prefix}', exist_ok=True)
     unrelaxed_pdb_path = f'results/{prefix}/{prefix}_unrelaxed_model_{n+1}.pdb'    
     with open(unrelaxed_pdb_path, 'w') as f: f.write(unrelaxed_pdb_lines[r])
     set_bfactor(unrelaxed_pdb_path, plddts[r], idx_res, chains)
